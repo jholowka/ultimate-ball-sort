@@ -10,6 +10,7 @@ public class BallDrag : MonoBehaviour
     private Vector3 offset;          // Offset between the object and the mouse position
     private Camera cam;              // Main camera
     [SerializeField] private Rigidbody body;
+    [SerializeField] private float rollSpeed = 10f;
     [SerializeField] private float horizontalThres = 38.7f;
     [SerializeField] private float leftBounds = -2.1f;
     [SerializeField] private float rightBounds = 9.4f;
@@ -18,9 +19,11 @@ public class BallDrag : MonoBehaviour
     [SerializeField] private float lowerVerticalBounds = -0.22f;
     [SerializeField] private float upperVerticalBounds = 1.05f;
     [SerializeField] private BallSound ballSound;
+    [SerializeField] private bool _debug;
     private float defaultBottomBounds;
     public bool allowDragging { get; set; } = false;
     private bool illegalMove;
+    private float dragTimer;
     public static Action<int> MouseOverBall;
 
     void Start()
@@ -50,6 +53,25 @@ public class BallDrag : MonoBehaviour
             // This is for anti-cheat. If at any point a ball is detected beneath this ball. Teleport this ball to a random spawner
             TeleportToSpawner();
         }
+
+        if (isDragging){
+            dragTimer += Time.deltaTime;
+        }
+        else
+        {
+            dragTimer = 0f;
+        }
+
+        if (isDragging && dragTimer > 0.5f)
+        {
+            bool hitLeft = Physics.Raycast(transform.position, Vector3.left, 0.6f, LayerMask.GetMask("Ball"));
+            bool hitRight = Physics.Raycast(transform.position, Vector3.right, 0.6f, LayerMask.GetMask("Ball"));
+            if (hitLeft || hitRight)
+            {
+                CancelDrag();
+            }
+        }
+
     }
 
     void OnMouseDown()
@@ -74,11 +96,14 @@ public class BallDrag : MonoBehaviour
     private bool CanDrag()
     {
         bool hitForward = Physics.Raycast(transform.position, Vector3.forward, 2f, LayerMask.GetMask("Ball"));
-        bool hitLeft = Physics.Raycast(transform.position, Vector3.left, 0.6f, LayerMask.GetMask("Ball"));
-        bool hitRight = Physics.Raycast(transform.position, Vector3.right, 0.6f, LayerMask.GetMask("Ball"));
+        bool hitBehind = false;
+
+        if (dragTimer > 0.5f){
+            hitBehind = Physics.Raycast(transform.position, -Vector3.forward, 0.6f, LayerMask.GetMask("Ball"));
+        }
 
         bool hit = false;
-        if (hitForward || hitLeft || hitRight){
+        if (hitForward || hitBehind){
             hit = true;
         }
         return !hit;
@@ -86,8 +111,12 @@ public class BallDrag : MonoBehaviour
 
     void OnMouseDrag()
     {
+        if (_debug){
+            Debug.Log ($"illegalMove? {illegalMove}. isDragging? {isDragging}. CanDrag? {CanDrag()}. allowDragging? {allowDragging}. Body is kinematic? {body.isKinematic}");
+        }
         if (!illegalMove && isDragging && CanDrag() && allowDragging)
         {
+            gameObject.layer = LayerMask.NameToLayer("DraggingBall");
             body.isKinematic = false;
             // Cast a ray from the camera to the mouse position
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
@@ -95,20 +124,31 @@ public class BallDrag : MonoBehaviour
             // Move the ball along the drag plane
             if (dragPlane.Raycast(ray, out float enter))
             {
-                Vector3 pos = ray.GetPoint(enter) + offset;
-                pos.y = transform.position.y;
-                if (transform.position.z < horizontalThres){
-                    // Only move left/right if above a certain point
-                    pos.x = transform.position.x;
+                Vector3 targetPosition = ray.GetPoint(enter) + offset;
+                targetPosition.y = transform.position.y;
+
+                // Smoothly move left/right when below the threshold
+                Vector3 smoothedPosition = Vector3.Lerp(transform.position, targetPosition, rollSpeed * Time.deltaTime);
+
+                if (transform.position.z < horizontalThres)
+                {
+                    // If below the horizontal threshold only allow moving up and down
+                    smoothedPosition.x = transform.position.x;
+                    smoothedPosition.y = transform.position.y;
                 }
-                transform.position = pos;
+                transform.position = smoothedPosition;
+
+                // Prevent rolling down while dragging
+                Vector2 fixedVelocity = body.velocity;
+                fixedVelocity.y = 0;
+                body.velocity = fixedVelocity;
             }
         }
     }
 
     void OnMouseOver()
     {
-        MouseOverBall.Invoke(gameObject.GetInstanceID());
+        MouseOverBall?.Invoke(gameObject.GetInstanceID());
     }
 
     private void OnMouseEnter()
@@ -128,6 +168,7 @@ public class BallDrag : MonoBehaviour
         body.velocity = Vector2.zero;
         body.angularVelocity = Vector2.zero;
         isDragging = false;
+        gameObject.layer = LayerMask.NameToLayer("Ball");
     }
 
     private void TeleportToSpawner()
@@ -143,19 +184,13 @@ public class BallDrag : MonoBehaviour
     {
         // Stop dragging when the mouse button is released
         isDragging = false;
+        gameObject.layer = LayerMask.NameToLayer("Ball");
     }
 
-    private void OnCollisionEnter(Collision other)
-    {
-        if (other.gameObject.CompareTag("Walls"))
-        {
-            StopAllMotion();
-        }
-    }
-
-    private void OnTriggerEnter(Collider other)
+    private void OnTriggerStay(Collider other)
     {
         if (isDragging) return;
+        if (body.isKinematic) return;
         if (other.gameObject.CompareTag("Walls"))
         {
             StopAllMotion();
@@ -170,12 +205,25 @@ public class BallDrag : MonoBehaviour
         body.isKinematic = true;
         bottomBounds = transform.position.z;
         isDragging = false;
+        gameObject.layer = LayerMask.NameToLayer("Ball");
+    }
+
+    private void OnCollisionEnter(Collision other)
+    {
+        if (other.gameObject.CompareTag("Ball") && dragTimer > 0.5f)
+        {
+            CancelDrag();
+        }
     }
 
     private void OnCollisionStay(Collision other)
     {
         if (other.gameObject.CompareTag("Ball")){
             bottomBounds = transform.position.z;
+            if (!isDragging && !body.isKinematic && Physics.Raycast(transform.position, -Vector3.forward, 0.6f, LayerMask.GetMask("Ball")))
+            {
+                StopAllMotion();
+            }
         }
     }
 

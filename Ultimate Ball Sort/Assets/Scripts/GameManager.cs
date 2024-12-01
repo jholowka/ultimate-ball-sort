@@ -3,33 +3,73 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using System;
+using System.Timers;
 
 public class GameManager : MonoBehaviour
 {
-    public enum GameState {GameLoad, SettingUp, Active, Victory}
+    public enum GameState { GameLoad, SettingUp, Active, Victory, Failed }
     public GameState currentGameState {get; private set;} = GameState.GameLoad;
+    [SerializeField] private UIManager uiManager;
     [SerializeField] private BallSpawner[] ballSpawners;
     [SerializeField] private GameObject[] ballPrefabs;
     [Tooltip("Only spawn in multiples of 5")]
     [SerializeField] private int ballsToSpawn = 35;
     [SerializeField] private float spawnDelay = 0.25f;
     [SerializeField] private TextMeshProUGUI timerText;
+    [SerializeField] private Animator boardAnim;
     public float timePassed { get; private set; }
     private int spawnerIndex;
     private Queue<int> randomizedBallIndices;
     public int winThres { get; private set; }
     public static Action<GameState> OnGameStateChange;
 
+    public const string KEY_BEST_TIME_RACED = "BestTime";
+    public const string KEY_BEST_TIME_3M = "Timed (3m)";
+    public const string KEY_BEST_TIME_2M = "Timed (2m)";
+    public const string KEY_BEST_TIME_1M = "Timed (1m)";
+
+    public const string KEY_GAME_MODE = "GameMode";
+    public const string VALUE_GAME_MODE_RACED = "Raced";
+    public const string VALUE_GAME_MODE_TIMED3 = "Timed (3m)";
+    public const string VALUE_GAME_MODE_TIMED2 = "Timed (2m)";
+    public const string VALUE_GAME_MODE_TIMED1 = "Timed (1m)";
+
 
     // Start is called before the first frame update
     void Start()
     {
-        timerText.text = "0m 0s";
         SetGameState(GameState.SettingUp);
         GenerateRandomizedBallIndices();
         StartCoroutine(SpawnBallCoroutine());
         WinDetector[] winDetectors = FindObjectsOfType<WinDetector>();
         winThres = ballsToSpawn / winDetectors.Length;
+        SetTimerText();
+    }
+
+    private void SetTimerText()
+    {
+        string gameMode = PlayerPrefs.GetString(KEY_GAME_MODE, VALUE_GAME_MODE_RACED);
+         switch (gameMode)
+        {
+            case VALUE_GAME_MODE_RACED:
+                timerText.text = "0m 0s";
+                break;
+
+            case VALUE_GAME_MODE_TIMED3:
+                timerText.text = "3m 0s";
+                timePassed = 180f;
+                break;
+
+            case VALUE_GAME_MODE_TIMED2:
+                timerText.text = "2m 0s";
+                timePassed = 120f;
+                break;
+
+            case VALUE_GAME_MODE_TIMED1:
+                timerText.text = "1m 0s";
+                timePassed = 60f;
+                break;
+        }
     }
 
     private void Update()
@@ -37,8 +77,29 @@ public class GameManager : MonoBehaviour
         if (currentGameState == GameState.Active)
         {
             // Run timer
-            timePassed += Time.deltaTime;
-            timerText.text = GetTimePassed();
+            string gameMode = PlayerPrefs.GetString(KEY_GAME_MODE, VALUE_GAME_MODE_RACED);
+            switch (gameMode)
+            {
+                case VALUE_GAME_MODE_RACED:
+                    timePassed += Time.deltaTime;
+                    timerText.text = GetTimePassed();
+                    break;
+
+                default:
+                    timePassed -= Time.deltaTime;
+                    timerText.text = GetTimePassed();
+                    if (timePassed < 30f)
+                    {
+                        timerText.color = Color.red;
+                    }
+
+                    if (timePassed < 0f){
+                        SetGameState(GameState.Failed);
+                        timePassed = 0f;
+                        timerText.text = "OUT OF TIME!";
+                    }
+                    break;
+            }
         }
     }
 
@@ -49,9 +110,9 @@ public class GameManager : MonoBehaviour
         return $"{minutes}m {seconds}s";
     }
 
-    public string GetBestTimeAsString()
+    public string GetBestTimeAsString(string key)
     {
-        float bestTime = PlayerPrefs.GetFloat("BestTime", float.MaxValue);
+        float bestTime = PlayerPrefs.GetFloat(key, float.MaxValue);
         int minutes = Mathf.FloorToInt(bestTime / 60);
         int seconds = Mathf.FloorToInt(bestTime % 60);
         return $"{minutes}m {seconds}s";
@@ -127,12 +188,43 @@ public class GameManager : MonoBehaviour
         spawnerIndex = (spawnerIndex + 1) % ballSpawners.Length;
     }
 
-    #region State Machine
+    #region Game State Machine
     public void SetGameState(GameState newState){
         if (newState == currentGameState) return;
         currentGameState = newState;
 
+        switch (newState)
+        {
+            case GameState.Active:
+                uiManager.PlayClip(uiManager.survivorsReadySound);
+                break;
+
+            case GameState.Victory:
+                uiManager.PlayClip(uiManager.thatsHowSound);
+                break;
+
+            case GameState.Failed:
+                StartCoroutine(DelayedFail());
+                break;
+        }
+
         OnGameStateChange?.Invoke(currentGameState);
+    }
+
+    private IEnumerator DelayedFail()
+    {
+        Ball[] balls = FindObjectsOfType<Ball>();
+        foreach (Ball ball in balls)
+        {
+            ball.DisableDrag();
+        }
+
+        boardAnim.SetTrigger("Pull");
+        uiManager.PlayClip(uiManager.pullSound);
+        yield return new WaitForSeconds(1f);
+        uiManager.PlayClip(uiManager.splashSound);
+        yield return new WaitForSeconds(0.5f);
+        uiManager.OpenMenu(uiManager.failureMenu, playSound:false);
     }
 
     private int columnsComplete;
@@ -153,6 +245,55 @@ public class GameManager : MonoBehaviour
     private void OnDisable()
     {
         WinDetector.OnColumnComplete -= SetColumnComplete;
+    }
+    #endregion
+
+    #region Game Mode State Machine
+    public void SetGameMode(int id)
+    {
+        switch (id)
+        {
+            case 0:
+                PlayerPrefs.SetString(KEY_GAME_MODE, "Raced");
+                break;
+
+            case 1:
+                PlayerPrefs.SetString(KEY_GAME_MODE, "Timed (3m)");
+                break;
+
+            case 2:
+                PlayerPrefs.SetString(KEY_GAME_MODE, "Timed (2m)");
+                break;
+
+            case 3:
+                PlayerPrefs.SetString(KEY_GAME_MODE, "Timed (1m)");
+                break;
+        }
+    }
+
+    public void ConfirmScoreReset()
+    {
+        string gameMode = PlayerPrefs.GetString(KEY_GAME_MODE, VALUE_GAME_MODE_RACED);
+        switch (gameMode)
+        {
+            case VALUE_GAME_MODE_RACED:
+                PlayerPrefs.DeleteKey(KEY_BEST_TIME_RACED);
+                break;
+
+            case VALUE_GAME_MODE_TIMED3:
+                PlayerPrefs.DeleteKey(KEY_BEST_TIME_3M);
+                break;
+
+            case VALUE_GAME_MODE_TIMED2:
+                PlayerPrefs.DeleteKey(KEY_BEST_TIME_2M);
+                break;
+
+            case VALUE_GAME_MODE_TIMED1:
+                PlayerPrefs.DeleteKey(KEY_BEST_TIME_1M);
+                break;
+        }
+
+        uiManager.PlayConfirmSound();
     }
     #endregion
 }

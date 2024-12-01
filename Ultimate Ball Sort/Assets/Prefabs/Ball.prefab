@@ -522,7 +522,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
 --- !u!114 &2068652286426245371
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -553,14 +553,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   body: {fileID: 5238613296664314055}
-  horizontalThres: 4.979
+  rollSpeed: 10
+  horizontalThres: 2.9
   leftBounds: -3.8
   rightBounds: 3.8
-  topBounds: 5.058
-  bottomBounds: -5.213
+  topBounds: 2.939
+  bottomBounds: -4.83
   lowerVerticalBounds: -0.22
   upperVerticalBounds: 1.05
   ballSound: {fileID: 2068652286426245371}
+  _debug: 0
 --- !u!114 &2220220380034212585
 MonoBehaviour:
   m_ObjectHideFlags: 0

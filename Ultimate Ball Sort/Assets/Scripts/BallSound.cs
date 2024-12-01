@@ -46,7 +46,18 @@ public class BallSound : MonoBehaviour
                 }
             }
         }
-        else if (other.gameObject.CompareTag("Board") || other.gameObject.CompareTag("Walls"))
+        else if (other.gameObject.CompareTag("Board"))
+        {
+            if (!dropSound.isPlaying)
+            {
+                dropSound.Play();
+            }
+        }
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Walls"))
         {
             if (!dropSound.isPlaying)
             {
