@@ -23,4 +23,9 @@ public class Ball : MonoBehaviour
     {
         ballDrag.allowDragging = false;
     }
+
+    public void DisableDrag(){
+        ballDrag.enabled = false;
+        body.isKinematic = false;
+    }
 }
