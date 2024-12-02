@@ -27,6 +27,7 @@ public class UIManager : MonoBehaviour
     [field: SerializeField] public AudioClip pullSound { get; private set; }
     [field: SerializeField] public AudioClip splashSound { get; private set; }
     private string gameModeOnOpenSettings;
+    public bool menuIsOpen {get; private set;}
 
     private void Start()
     {
@@ -46,7 +47,8 @@ public class UIManager : MonoBehaviour
         SetMusicButtonSprite(musicPlayer);
     }
 
-    private void OpenSettingsMenu(){
+    private void OpenSettingsMenu()
+    {
         gameModeOnOpenSettings = PlayerPrefs.GetString(GameManager.KEY_GAME_MODE, GameManager.VALUE_GAME_MODE_RACED);
         OpenMenu(settingsMenu);
     }
@@ -56,9 +58,11 @@ public class UIManager : MonoBehaviour
         menu.SetActive(true);
         if (playSound) audioSource.clip = openSound;
         if (playSound) audioSource.Play();
+        menuIsOpen = true;
     }
 
     public void CloseSettingsMenu(){
+        Time.timeScale = 1f;
         string gameModeNow = PlayerPrefs.GetString(GameManager.KEY_GAME_MODE, GameManager.VALUE_GAME_MODE_RACED);
         if (gameModeNow != gameModeOnOpenSettings)
         {
@@ -72,6 +76,7 @@ public class UIManager : MonoBehaviour
         menu.SetActive(false);
         audioSource.clip = closeSound;
         audioSource.Play();
+        menuIsOpen = false;
     }
 
     public void RestartGame(){

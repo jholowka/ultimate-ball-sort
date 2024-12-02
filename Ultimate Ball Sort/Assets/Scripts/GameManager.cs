@@ -74,7 +74,7 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (currentGameState == GameState.Active)
+        if (currentGameState == GameState.Active && !uiManager.menuIsOpen)
         {
             // Run timer
             string gameMode = PlayerPrefs.GetString(KEY_GAME_MODE, VALUE_GAME_MODE_RACED);
