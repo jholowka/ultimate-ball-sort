@@ -51,5 +51,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "Ball Sort Puzzle.sln"
+    "dotnet.defaultSolution": "Ultimate Ball Sort.sln"
 }
