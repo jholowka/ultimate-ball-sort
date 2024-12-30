@@ -139,9 +139,9 @@ public class BallDrag : MonoBehaviour
                 transform.position = smoothedPosition;
 
                 // Prevent rolling down while dragging
-                Vector2 fixedVelocity = body.velocity;
+                Vector2 fixedVelocity = body.linearVelocity;
                 fixedVelocity.y = 0;
-                body.velocity = fixedVelocity;
+                body.linearVelocity = fixedVelocity;
             }
         }
     }
@@ -165,7 +165,7 @@ public class BallDrag : MonoBehaviour
 
     private void CancelDrag()
     {
-        body.velocity = Vector2.zero;
+        body.linearVelocity = Vector2.zero;
         body.angularVelocity = Vector2.zero;
         isDragging = false;
         gameObject.layer = LayerMask.NameToLayer("Ball");
@@ -200,7 +200,7 @@ public class BallDrag : MonoBehaviour
     private void StopAllMotion()
     {
         if (body.isKinematic) return;
-        body.velocity = Vector2.zero;
+        body.linearVelocity = Vector2.zero;
         body.angularVelocity = Vector2.zero;
         body.isKinematic = true;
         bottomBounds = transform.position.z;

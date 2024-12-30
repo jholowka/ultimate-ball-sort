@@ -11,7 +11,7 @@ public class Ball : MonoBehaviour
 
     public bool GetIsMoving()
     {
-        if (body.velocity.sqrMagnitude > 0.02f)
+        if (body.linearVelocity.sqrMagnitude > 0.02f)
         {
             return true;
         }
