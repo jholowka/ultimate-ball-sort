@@ -14,7 +14,7 @@ public class BallSound : MonoBehaviour
     {
         if (!ballDrag.isDragging)
         {
-            Vector3 horizontalVelocity = new Vector3(body.velocity.x, 0, body.velocity.z);
+            Vector3 horizontalVelocity = new Vector3(body.linearVelocity.x, 0, body.linearVelocity.z);
             if (horizontalVelocity.sqrMagnitude > 0.5f)
             {
                 if (!rollSound.isPlaying)

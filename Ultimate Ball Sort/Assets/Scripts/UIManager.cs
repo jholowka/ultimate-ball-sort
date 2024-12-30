@@ -27,7 +27,7 @@ public class UIManager : MonoBehaviour
     [field: SerializeField] public AudioClip pullSound { get; private set; }
     [field: SerializeField] public AudioClip splashSound { get; private set; }
     private string gameModeOnOpenSettings;
-    public bool menuIsOpen {get; private set;}
+    public bool menuIsOpen { get; private set; }
 
     private void Start()
     {
@@ -43,7 +43,7 @@ public class UIManager : MonoBehaviour
         confirmResetMenu.SetActive(false);
         failureMenu.SetActive(false);
 
-        MusicPlayer musicPlayer = FindObjectOfType<MusicPlayer>();
+        MusicPlayer musicPlayer = FindFirstObjectByType<MusicPlayer>();
         SetMusicButtonSprite(musicPlayer);
     }
 
@@ -53,15 +53,17 @@ public class UIManager : MonoBehaviour
         OpenMenu(settingsMenu);
     }
 
-    public void OpenMenu(GameObject menu, bool playSound=true)
+    public void OpenMenu(GameObject menu, bool playSound = true)
     {
         menu.SetActive(true);
         if (playSound) audioSource.clip = openSound;
         if (playSound) audioSource.Play();
         menuIsOpen = true;
+        menu.transform.SetAsLastSibling();
     }
 
-    public void CloseSettingsMenu(){
+    public void CloseSettingsMenu()
+    {
         Time.timeScale = 1f;
         string gameModeNow = PlayerPrefs.GetString(GameManager.KEY_GAME_MODE, GameManager.VALUE_GAME_MODE_RACED);
         if (gameModeNow != gameModeOnOpenSettings)
@@ -72,20 +74,22 @@ public class UIManager : MonoBehaviour
         CloseMenu(settingsMenu);
     }
 
-    public void CloseMenu(GameObject menu){
+    public void CloseMenu(GameObject menu)
+    {
         menu.SetActive(false);
         audioSource.clip = closeSound;
         audioSource.Play();
         menuIsOpen = false;
     }
 
-    public void RestartGame(){
+    public void RestartGame()
+    {
         SceneManager.LoadScene(0);
     }
 
-    public void ToggleMusic ()
+    public void ToggleMusic()
     {
-        MusicPlayer musicPlayer = FindObjectOfType<MusicPlayer>();
+        MusicPlayer musicPlayer = FindFirstObjectByType<MusicPlayer>();
         musicPlayer.Toggle();
         SetMusicButtonSprite(musicPlayer);
     }
@@ -118,12 +122,14 @@ public class UIManager : MonoBehaviour
         audioSource.Play();
     }
 
-    public void PlayConfirmSound(){
+    public void PlayConfirmSound()
+    {
         audioSource.clip = confirmSound;
         audioSource.Play();
     }
 
-    public void PlayClip(AudioClip clip){
+    public void PlayClip(AudioClip clip)
+    {
         audioSource.clip = clip;
         audioSource.Play();
     }
